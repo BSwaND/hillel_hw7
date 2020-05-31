@@ -22,48 +22,91 @@ abstract class Model
 
 	/**
 	 * @param int $id
-	 * @return array
+	 * @return static
 	 */
-	public static function find(int $id)//: array
+	public static function find(int $id): self
 	{
 		$pdo = static::connect();
 		$sql = 'SELECT * FROM `' . static::getTable() . '` WHERE `id` = :id';
 		$stmt = $pdo->prepare($sql);
 		$stmt->bindValue(':id', $id);
 		$stmt->execute();
+		$result =  $stmt->fetch(PDO::FETCH_ASSOC);
+		$instants = new static();
 		static::errorInfo($stmt);
-		return $stmt->fetch(PDO::FETCH_ASSOC);
+
+		foreach ($result as $key=>$val){
+			$methodName = 'set'.$key;
+			$instants->$methodName($val);
+		}
+		return $instants;
 	}
 
 	/**
-	 * @param string $name
-	 * @param string $email
+	 * @param array $param
 	 */
-	public function create(string $name, string $email)
+	public function create(array $param)
 	{
+		$instants = new static();
+		$fields= null;
+		$bindFields = array();
+
+		/*
+		 * Вопросы преподователю:
+		 *  - нужно ли тут использовать  new static(), и использовать  методы (get & set),
+		 *    что бы получать свойства? Я тут руководствовался логикой, что свойства в классе наследнике
+		 *    могут валидироваться.
+		 *
+		 *  - Ниже по коду foreach делал для универсвльности класса Model, что бы он подхоил под
+		 *    любые классы наследники с разнымы полими и разным их количеством. Но мое решение
+		 *    мне кажется не лаконичным и сложным.
+		 *    Так ли это, можно где-то посмотреть решение данной задачи, я не нашол.
+		 *
+		 *
+		 */
+
+		foreach ($param as $key=>$val){
+			$setMethodName = 'set'.ucfirst($key);
+			$instants->$setMethodName($val);
+
+			$fields .= '`'.$key.'` = :'.$key.' ,'; // `name` = :name, `email` = :email '
+			$getMethodName= 'get'.ucfirst($key);
+			$bindFields[$key] = $instants->$getMethodName();
+		}
+		$fields = substr($fields,0,-1);
+
 		$pdo = $this->connect();
-		$sql = 'INSERT INTO `' . static::getTable() . '` SET `name` = :name, `email` = :email ';
+		$sql = 'INSERT INTO `' . static::getTable() . '` SET '. $fields;
 		$stmt = $pdo->prepare($sql);
-		$stmt->bindValue(':name', $name);
-		$stmt->bindValue(':email', $email);
-		$stmt->execute();
+		$stmt->execute($bindFields);
 		$this->errorInfo($stmt);
 	}
 
 	/**
-	 * @param int $id
-	 * @param string $name
-	 * @param string $email
+	 * @param array $param
 	 */
-	public function update(int $id, string $name, string $email)
+	public function update(array $param)
 	{
+		$instants = new static();
+		$fields= null;
+		$bindFields = array();
+
+		foreach ($param as $key=>$val){
+			$setMethodName = 'set'.ucfirst($key);
+			$instants->$setMethodName($val);
+
+			$getMethodName= 'get'.ucfirst($key);
+			if($key != 'id'){
+				$fields .= '`'.$key.'` = :'.$key.','; // `name` = :name, `email` = :email WHERE `id` = :id
+			}
+				$bindFields[$key] = $instants->$getMethodName();
+		}
+		$fields = substr($fields,0,-1);
+
 		$pdo = $this->connect();
-		$sql = 'UPDATE `' . static::getTable() . '` SET `name` = :name, `email` = :email WHERE `id` = :id ';
+		$sql = 'UPDATE `' . static::getTable() . '` SET '.$fields .' WHERE `id` = :id';
 		$stmt = $pdo->prepare($sql);
-		$stmt->bindValue(':id', $id);
-		$stmt->bindValue(':name', $name);
-		$stmt->bindValue(':email', $email);
-		$stmt->execute();
+		$stmt->execute($bindFields);
 		$this->errorInfo($stmt);
 	}
 

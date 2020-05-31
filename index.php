@@ -3,11 +3,28 @@
 require_once 'vendor/autoload.php';
 
 use App\User;
+use App\Address;
 
-$user = new User;
 
-$user->create("Nicola", "nikola@gmai.com");
-$user->update(3, "New_name", "new_email_@gmail.com");
-$user->delete(23);
+$user = User::find(1);
+$user = new User();
 
-var_dump($user::find(1));
+$user->create([
+	'email' => 'mail@com',
+	'name' => 'NAicname',
+	]);
+
+$user->update([
+	'id' => 3,
+	'name' => 'Petrov',
+	'email' => 'petrov@gmail.com'
+]);
+
+
+
+$address = new Address();
+
+$address->create([
+	'city' => 'Odessa',
+	'street' => 'Derabas',
+]);
